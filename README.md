@@ -348,6 +348,41 @@ npm run type-check
 
 ## 🌐 Deployment
 
+### Deploy to Render
+
+**Push to GitHub**
+
+```bash
+git push origin main
+```
+
+**Connect to Render**
+
+1. Go to Render and create a new Web Service.
+2. Connect your GitHub repository (`vetconnect-rwanda-backend`).
+3. Set the Environment to **Node**.
+4. Specify the Build Command:
+
+```bash
+npm install && npm run build
+```
+
+5. Specify the Start Command:
+
+```bash
+npm run start
+```
+
+6. Add the environment variables from your `.env` file in the Render dashboard.
+
+**Database Setup**
+
+- Use a managed MongoDB Atlas database or external MongoDB.
+- Copy the database URL to the `DATABASE_URL` environment variable.
+
+✅ After deployment, your backend API is live at a Render URL, e.g.,
+`https://vetconnect-backend.onrender.com/api/v1`
+
 ---
 
 ## 🤝 Contributing
