@@ -26,6 +26,11 @@ app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // Logging
 
+// Root route
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).send('🐾 Welcome to VetConnect API Backend!');
+});
+
 // Health check route
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
