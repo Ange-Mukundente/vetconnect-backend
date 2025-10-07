@@ -228,6 +228,7 @@ Edit `.env` with your MongoDB Atlas credentials and other configuration (see [En
 npm run dev
 ```
 
+The API will be avaiable live at `https://vetconnect-backend-3.onrender.com`
 The API will be available at `http://localhost:5000`
 
 ---
