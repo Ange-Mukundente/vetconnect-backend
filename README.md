@@ -204,8 +204,8 @@ vetconnect-backend/
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/yourusername/vetconnect-rwanda-backend.git
-cd vetconnect-rwanda-backend
+git clone https://github.com/Ange-Mukundente/vetconnect-backend.git
+cd vetconnect-backend
 ```
 
 2. **Install dependencies**
