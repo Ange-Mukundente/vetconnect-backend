@@ -8,7 +8,7 @@ const router = Router();
 // Register new user
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, name, role, phone } = req.body;
+    const { email, password, name, role, phone, district, sector } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -28,7 +28,9 @@ router.post('/register', async (req: Request, res: Response) => {
       password: hashedPassword,
       name,
       role,
-      phone
+      phone,
+      district,
+      sector
     });
 
     res.status(201).json({
@@ -38,7 +40,10 @@ router.post('/register', async (req: Request, res: Response) => {
         id: newUser._id,
         email: newUser.email,
         name: newUser.name,
-        role: newUser.role
+        role: newUser.role,
+        phone: newUser.phone,
+        district: newUser.district,
+        sector: newUser.sector
       }
     });
   } catch (error) {
@@ -83,7 +88,10 @@ router.post('/login', async (req: Request, res: Response) => {
           id: user._id,
           email: user.email,
           name: user.name,
-          role: user.role
+          role: user.role,
+          phone: user.phone,
+          district: user.district,
+          sector: user.sector
         }
       }
     });
