@@ -2,7 +2,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
-  _id: Types.ObjectId; // Add this line
+  _id: Types.ObjectId;
   name: string;
   email: string;
   password: string;
@@ -56,38 +56,23 @@ const userSchema = new Schema<IUser>({
     required: true
   },
   
-  // Farmer-specific fields
+  // Farmer-specific fields (no required function - handled by pre-validate)
   district: {
-    type: String,
-    required: function(this: IUser) {
-      return this.role === 'farmer';
-    }
+    type: String
   },
   sector: {
-    type: String,
-    required: function(this: IUser) {
-      return this.role === 'farmer';
-    }
+    type: String
   },
   
-  // Veterinarian-specific fields
+  // Veterinarian-specific fields (no required function - handled by pre-validate)
   specialty: {
-    type: String,
-    required: function(this: IUser) {
-      return this.role === 'veterinarian' || this.role === 'vet';
-    }
+    type: String
   },
   licenseNumber: {
-    type: String,
-    required: function(this: IUser) {
-      return this.role === 'veterinarian' || this.role === 'vet';
-    }
+    type: String
   },
   location: {
-    type: String,
-    required: function(this: IUser) {
-      return this.role === 'veterinarian' || this.role === 'vet';
-    }
+    type: String
   },
   rating: {
     type: Number,
@@ -102,6 +87,34 @@ const userSchema = new Schema<IUser>({
   }
 }, { 
   timestamps: true 
+});
+
+// Custom validation before save
+userSchema.pre('validate', function(next) {
+  // Validate farmer fields
+  if (this.role === 'farmer') {
+    if (!this.district) {
+      this.invalidate('district', 'District is required for farmers');
+    }
+    if (!this.sector) {
+      this.invalidate('sector', 'Sector is required for farmers');
+    }
+  }
+  
+  // Validate veterinarian/vet fields
+  if (this.role === 'veterinarian' || this.role === 'vet') {
+    if (!this.specialty) {
+      this.invalidate('specialty', 'Specialty is required for veterinarians');
+    }
+    if (!this.licenseNumber) {
+      this.invalidate('licenseNumber', 'License number is required for veterinarians');
+    }
+    if (!this.location) {
+      this.invalidate('location', 'Location is required for veterinarians');
+    }
+  }
+  
+  next();
 });
 
 // Hash password before saving
