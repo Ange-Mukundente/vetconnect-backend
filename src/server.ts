@@ -16,11 +16,20 @@ const app: Application = express();
 // Connect to MongoDB
 connectDB();
 
+// CORS Configuration
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(origin => origin.trim()) // trim whitespace
+  : ['http://localhost:3000'];
+
+console.log('🌐 Allowed CORS origins:', allowedOrigins);
+
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
@@ -36,7 +45,8 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     message: 'VetConnect API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    allowedOrigins: allowedOrigins // helpful for debugging
   });
 });
 
