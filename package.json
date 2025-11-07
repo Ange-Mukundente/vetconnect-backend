@@ -17,6 +17,7 @@
   "author": "Ange Mukundente",
   "license": "MIT",
   "dependencies": {
+    "africastalking": "^0.7.7",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -27,6 +28,7 @@
     "morgan": "^1.10.1"
   },
   "devDependencies": {
+    "@types/africastalking": "^0.6.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/helmet": "^4.0.0",
