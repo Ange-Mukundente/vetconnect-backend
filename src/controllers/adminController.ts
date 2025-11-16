@@ -1,282 +1,316 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
 import Alert from '../models/Alert';
-import smsService from '../services/smsService';
+import { sendSMS } from '../services/twilioService';
 
-/**
- * Get all farmers
- * GET /api/admin/farmers
- */
-export const getAllFarmers = async (req: Request, res: Response) => {
+// @desc    Get admin dashboard statistics
+// @route   GET /api/admin/dashboard
+// @access  Private/Admin
+export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const farmers = await User.find({ role: 'farmer', isActive: true })
-      .select('name email phone district sector createdAt')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: farmers.length,
-      data: farmers
-    });
-  } catch (error: any) {
-    console.error('Error fetching farmers:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch farmers',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Send SMS alert to all farmers (Broadcast)
- * POST /api/admin/send-broadcast-alert
- */
-export const sendBroadcastAlert = async (req: Request, res: Response) => {
-  try {
-    const { message } = req.body;
     const adminId = req.user?.id;
 
-    // Validation
-    if (!message || message.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Alert message is required'
-      });
+    if (!adminId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    if (message.length > 160) {
-      return res.status(400).json({
-        success: false,
-        message: 'Message cannot exceed 160 characters (SMS limit)'
-      });
-    }
-
-    // Get all active farmers
-    const farmers = await User.find({ 
-      role: 'farmer', 
-      isActive: true,
-      phone: { $exists: true, $ne: '' }
+    const totalFarmers = await User.countDocuments({ role: 'farmer' });
+    const totalVeterinarians = await User.countDocuments({ 
+      $or: [{ role: 'veterinarian' }, { role: 'vet' }] 
     });
-
-    if (farmers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No active farmers found'
-      });
-    }
-
-    // Extract phone numbers
-    const phoneNumbers = farmers.map(farmer => farmer.phone);
-    const farmerIds = farmers.map(farmer => farmer._id);
-
-    // Send bulk SMS
-    const smsResult = await smsService.sendBulkSMS(phoneNumbers, message);
-
-    // Create alert record
-    const alert = await Alert.create({
-      message,
-      recipients: farmerIds,
-      sentBy: adminId,
-      alertType: 'broadcast',
-      status: smsResult.success ? 'sent' : 'failed',
-      successCount: smsResult.recipients?.length || 0,
-      failureCount: smsResult.failedRecipients?.length || 0,
-      failedRecipients: smsResult.failedRecipients?.map(failed => {
-        const farmer = farmers.find(f => f.phone === failed.phone);
-        return {
-          userId: farmer?._id,
-          phone: failed.phone,
-          error: failed.error
-        };
-      })
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Broadcast alert sent',
-      data: {
-        alertId: alert._id,
-        totalRecipients: farmers.length,
-        successCount: alert.successCount,
-        failureCount: alert.failureCount,
-        smsResult: smsResult.message
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Error sending broadcast alert:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send broadcast alert',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Send SMS alert to specific farmers
- * POST /api/admin/send-individual-alert
- */
-export const sendIndividualAlert = async (req: Request, res: Response) => {
-  try {
-    const { message, farmerIds } = req.body;
-    const adminId = req.user?.id;
-    // Validation
-    if (!message || message.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Alert message is required'
-      });
-    }
-
-    if (message.length > 160) {
-      return res.status(400).json({
-        success: false,
-        message: 'Message cannot exceed 160 characters (SMS limit)'
-      });
-    }
-
-    if (!farmerIds || !Array.isArray(farmerIds) || farmerIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'At least one farmer ID is required'
-      });
-    }
-
-    // Get selected farmers
-    const farmers = await User.find({
-      _id: { $in: farmerIds },
-      role: 'farmer',
-      isActive: true,
-      phone: { $exists: true, $ne: '' }
-    });
-
-    if (farmers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No valid farmers found with the provided IDs'
-      });
-    }
-
-    // Extract phone numbers
-    const phoneNumbers = farmers.map(farmer => farmer.phone);
-
-    // Send SMS
-    const smsResult = await smsService.sendBulkSMS(phoneNumbers, message);
-
-    // Create alert record
-    const alert = await Alert.create({
-      message,
-      recipients: farmers.map(f => f._id),
-      sentBy: adminId,
-      alertType: 'individual',
-      status: smsResult.success ? 'sent' : 'failed',
-      successCount: smsResult.recipients?.length || 0,
-      failureCount: smsResult.failedRecipients?.length || 0,
-      failedRecipients: smsResult.failedRecipients?.map(failed => {
-        const farmer = farmers.find(f => f.phone === failed.phone);
-        return {
-          userId: farmer?._id,
-          phone: failed.phone,
-          error: failed.error
-        };
-      })
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Individual alerts sent',
-      data: {
-        alertId: alert._id,
-        totalRecipients: farmers.length,
-        successCount: alert.successCount,
-        failureCount: alert.failureCount,
-        smsResult: smsResult.message
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Error sending individual alert:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send individual alert',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get alert history
- * GET /api/admin/alert-history
- */
-export const getAlertHistory = async (req: Request, res: Response) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    
-    const alerts = await Alert.find()
-      .populate('sentBy', 'name email')
-      .populate('recipients', 'name phone')
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .skip((Number(page) - 1) * Number(limit));
-
-    const total = await Alert.countDocuments();
-
-    res.status(200).json({
-      success: true,
-      data: alerts,
-      pagination: {
-        total,
-        page: Number(page),
-        pages: Math.ceil(total / Number(limit))
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Error fetching alert history:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch alert history',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get statistics
- * GET /api/admin/stats
- */
-export const getAdminStats = async (req: Request, res: Response) => {
-  try {
-    const totalFarmers = await User.countDocuments({ role: 'farmer', isActive: true });
-    const totalVets = await User.countDocuments({ 
-      role: { $in: ['veterinarian', 'vet'] }, 
-      isActive: true 
-    });
+    // Changed: Count ALL alerts, not just from this admin
     const totalAlerts = await Alert.countDocuments();
-    
-    const recentAlerts = await Alert.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('sentBy', 'name');
 
     res.status(200).json({
       success: true,
       data: {
         totalFarmers,
-        totalVets,
+        totalVeterinarians,
         totalAlerts,
-        recentAlerts
-      }
+      },
     });
-
   } catch (error: any) {
-    console.error('Error fetching admin stats:', error);
+    console.error('Dashboard stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch statistics',
-      error: error.message
+      message: error.message || 'Failed to fetch dashboard statistics',
+    });
+  }
+};
+
+// @desc    Broadcast alert to farmers via SMS
+// @route   POST /api/admin/broadcast
+// @access  Private/Admin
+export const broadcastAlert = async (req: Request, res: Response) => {
+  try {
+    const { message, priority, targetType, selectedFarmerId, selectedDistrict, selectedSector } = req.body;
+    const adminId = req.user?.id;
+
+    if (!adminId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a message',
+      });
+    }
+
+    console.log('\n' + '='.repeat(60));
+    console.log('🚀 STARTING SMS BROADCAST');
+    console.log('='.repeat(60));
+    console.log(`📝 Message: ${message}`);
+    console.log(`⚡ Priority: ${priority || 'medium'}`);
+    console.log(`🎯 Target Type: ${targetType || 'all'}`);
+
+    // Build query based on target type
+    let query: any = {
+      role: 'farmer',
+      phone: { $exists: true, $nin: [null, ''] },
+    };
+
+    if (targetType === 'individual' && selectedFarmerId) {
+      query._id = selectedFarmerId;
+      console.log(`👤 Target: Individual farmer (${selectedFarmerId})`);
+    } else if (targetType === 'district' && selectedDistrict) {
+      query.district = selectedDistrict;
+      console.log(`📍 Target: District (${selectedDistrict})`);
+    } else if (targetType === 'sector' && selectedSector) {
+      query.sector = selectedSector;
+      console.log(`🗺️  Target: Sector (${selectedSector})`);
+    } else {
+      console.log(`🌍 Target: All Farmers`);
+    }
+
+    // Get farmers based on query
+    const dbFarmers = await User.find(query).select('phone name email _id district sector');
+
+    console.log(`📊 Found ${dbFarmers.length} farmers matching criteria`);
+
+    if (dbFarmers.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No farmers found matching the criteria',
+      });
+    }
+
+    console.log('\n📱 Recipients:');
+    dbFarmers.forEach((farmer, index) => {
+      console.log(`   ${index + 1}. ${farmer.name} (${farmer.phone}) - ${farmer.sector}, ${farmer.district}`);
+    });
+
+    console.log('\n' + '-'.repeat(60));
+    console.log('📤 SENDING SMS...');
+    console.log('-'.repeat(60) + '\n');
+
+    // Send SMS
+    let successCount = 0;
+    let failureCount = 0;
+    const results = [];
+    const failedRecipients = [];
+
+    for (const farmer of dbFarmers) {
+      try {
+        const smsMessage = `[VetConnect Alert]\n\n${message}\n\n- VetConnect Rwanda`;
+
+        console.log(`▶️  ${farmer.name} (${farmer.phone})`);
+
+        const result = await sendSMS(farmer.phone, smsMessage);
+
+        if (result.success) {
+          successCount++;
+          results.push({
+            farmer: farmer.name,
+            phone: farmer.phone,
+            status: 'success',
+          });
+          console.log(`   ✅ SUCCESS`);
+        } else {
+          throw new Error(result.message);
+        }
+      } catch (error: any) {
+        failureCount++;
+        results.push({
+          farmer: farmer.name,
+          phone: farmer.phone,
+          status: 'failed',
+          error: error.message,
+        });
+        failedRecipients.push({
+          userId: farmer._id,
+          phone: farmer.phone,
+          error: error.message,
+        });
+        console.error(`   ❌ FAILED: ${error.message}`);
+      }
+    }
+
+    // Save alert
+    const alert = await Alert.create({
+      message: message.substring(0, 500),
+      recipients: dbFarmers.map((f) => f._id),
+      sentBy: adminId,
+      alertType: targetType === 'individual' ? 'individual' : 'broadcast',
+      status: failureCount === 0 ? 'sent' : 'sent',
+      successCount,
+      failureCount,
+      failedRecipients: failedRecipients.length > 0 ? failedRecipients : undefined,
+    });
+
+    console.log(`\n✅ Alert saved (ID: ${alert._id})`);
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 COMPLETE');
+    console.log('='.repeat(60));
+    console.log(`Recipients: ${dbFarmers.length}`);
+    console.log(`✅ Success: ${successCount}`);
+    console.log(`❌ Failed: ${failureCount}`);
+    console.log('='.repeat(60) + '\n');
+
+    res.status(201).json({
+      success: true,
+      message: `Alert sent to ${successCount}/${dbFarmers.length} farmers`,
+      data: {
+        alertId: alert._id,
+        totalFarmers: dbFarmers.length,
+        successCount,
+        failureCount,
+        results,
+      },
+    });
+  } catch (error: any) {
+    console.error('\n❌ ERROR:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to send alert',
+    });
+  }
+};
+
+// @desc    Get all alerts
+// @route   GET /api/admin/alerts
+// @access  Private/Admin
+export const getAlerts = async (req: Request, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+
+    if (!adminId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    console.log('🔍 Fetching all alerts from database...');
+
+    // CHANGED: Get ALL alerts, not filtered by sentBy
+    const alerts = await Alert.find()
+      .populate('sentBy', 'name email')
+      .populate('recipients', 'name email phone district sector')
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    console.log(`📊 Found ${alerts.length} total alerts in database`);
+
+    res.status(200).json({
+      success: true,
+      data: alerts,
+    });
+  } catch (error: any) {
+    console.error('Get alerts error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch alerts',
+    });
+  }
+};
+
+// @desc    Get all farmers
+// @route   GET /api/admin/farmers
+// @access  Private/Admin
+export const getAllFarmers = async (req: Request, res: Response) => {
+  try {
+    const dbFarmers = await User.find({ role: 'farmer' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: dbFarmers.length,
+      data: dbFarmers,
+    });
+  } catch (error: any) {
+    console.error('Get farmers error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch farmers',
+    });
+  }
+};
+
+// @desc    Delete a farmer
+// @route   DELETE /api/admin/farmers/:id
+// @access  Private/Admin
+export const deleteFarmer = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user?.id;
+
+    if (!adminId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const farmer = await User.findById(id);
+
+    if (!farmer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Farmer not found'
+      });
+    }
+
+    if (farmer.role !== 'farmer') {
+      return res.status(400).json({
+        success: false,
+        message: 'This user is not a farmer'
+      });
+    }
+
+    await User.findByIdAndDelete(id);
+
+    console.log(`🗑️  Farmer deleted: ${farmer.name} (${id})`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Farmer deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('Delete farmer error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete farmer'
+    });
+  }
+};
+
+// @desc    Get all veterinarians
+// @route   GET /api/admin/veterinarians
+// @access  Private/Admin
+export const getAllVeterinarians = async (req: Request, res: Response) => {
+  try {
+    const veterinarians = await User.find({ 
+      $or: [{ role: 'veterinarian' }, { role: 'vet' }] 
+    })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: veterinarians.length,
+      data: veterinarians,
+    });
+  } catch (error: any) {
+    console.error('Get veterinarians error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch veterinarians',
     });
   }
 };

@@ -7,6 +7,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   phone: string;
+  phoneNumber: string; // Alias for phone
   role: 'farmer' | 'veterinarian' | 'vet' | 'admin';
   
   // Farmer-specific fields
@@ -56,7 +57,7 @@ const userSchema = new Schema<IUser>({
     required: true
   },
   
-  // Farmer-specific fields (no required function - handled by pre-validate)
+  // Farmer-specific fields
   district: {
     type: String
   },
@@ -64,7 +65,7 @@ const userSchema = new Schema<IUser>({
     type: String
   },
   
-  // Veterinarian-specific fields (no required function - handled by pre-validate)
+  // Veterinarian-specific fields
   specialty: {
     type: String
   },
@@ -86,7 +87,16 @@ const userSchema = new Schema<IUser>({
     default: true
   }
 }, { 
-  timestamps: true 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual field: phoneNumber (alias for phone)
+userSchema.virtual('phoneNumber').get(function() {
+  return this.phone;
+}).set(function(value: string) {
+  this.phone = value;
 });
 
 // Custom validation before save

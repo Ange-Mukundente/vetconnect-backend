@@ -3,9 +3,9 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IAlert extends Document {
   _id: Types.ObjectId;
   message: string;
-  recipients: Types.ObjectId[]; // Array of user IDs who received the alert
-  sentBy: Types.ObjectId; // Admin who sent the alert
-  alertType: 'broadcast' | 'individual'; // Type of alert
+  recipients: Types.ObjectId[];
+  sentBy?: Types.ObjectId; // Made optional
+  alertType?: 'broadcast' | 'individual'; // Made optional
   status: 'pending' | 'sent' | 'failed';
   failedRecipients?: {
     userId: Types.ObjectId;
@@ -23,7 +23,7 @@ const alertSchema = new Schema<IAlert>({
     type: String,
     required: [true, 'Alert message is required'],
     trim: true,
-    maxlength: [160, 'SMS message cannot exceed 160 characters']
+    maxlength: [500, 'Message cannot exceed 500 characters']
   },
   recipients: [{
     type: Schema.Types.ObjectId,
@@ -33,12 +33,12 @@ const alertSchema = new Schema<IAlert>({
   sentBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false  // ← Optional
   },
   alertType: {
     type: String,
     enum: ['broadcast', 'individual'],
-    required: true
+    required: false  // ← Optional
   },
   status: {
     type: String,

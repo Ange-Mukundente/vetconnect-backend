@@ -1,8 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
+//import dotenv from 'dotenv';
 import connectDB from './config/database';
 import routes from './routes';
 import errorHandler from './middleware/errorHandler';

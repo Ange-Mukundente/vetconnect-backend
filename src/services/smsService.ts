@@ -52,25 +52,33 @@ class SMSService {
     try {
       const formattedPhone = this.formatPhoneNumber(to);
       
+      console.log(`📤 Sending SMS to: ${formattedPhone}`);
+      
       const options = {
         to: [formattedPhone],
         message: message,
-       // from: process.env.AFRICASTALKING_SENDER_ID || 'VetConnect'
+        // Uncomment if you have a registered shortcode:
+        // from: process.env.AFRICASTALKING_SENDER_ID || 'VetConnect'
       };
 
       const response = await this.sms.send(options);
       
+      console.log('📡 SMS API Response:', JSON.stringify(response, null, 2));
+      
       // Check if SMS was sent successfully
-      if (response.SMSMessageData.Recipients.length > 0) {
+      if (response.SMSMessageData?.Recipients?.length > 0) {
         const recipient = response.SMSMessageData.Recipients[0];
         
-        if (recipient.status === 'Success') {
+        // Status codes: 101 = sent, 102 = queued
+        if (recipient.statusCode === 101 || recipient.statusCode === 102 || recipient.status === 'Success') {
+          console.log(`✅ SMS sent successfully to ${formattedPhone}`);
           return {
             success: true,
             message: 'SMS sent successfully',
             recipients: [formattedPhone]
           };
         } else {
+          console.error(`❌ SMS failed: ${recipient.status}`);
           return {
             success: false,
             message: recipient.status,
@@ -92,7 +100,7 @@ class SMSService {
       };
 
     } catch (error: any) {
-      console.error('SMS sending error:', error);
+      console.error('❌ SMS sending error:', error);
       return {
         success: false,
         message: error.message || 'Failed to send SMS',
@@ -112,10 +120,13 @@ class SMSService {
       // Format all phone numbers
       const formattedPhones = recipients.map(phone => this.formatPhoneNumber(phone));
       
+      console.log(`📤 Sending bulk SMS to ${formattedPhones.length} recipients`);
+      
       const options = {
         to: formattedPhones,
         message: message,
-        from: process.env.AFRICASTALKING_SENDER_ID || 'VetConnect'
+        // Uncomment if you have a registered shortcode:
+        // from: process.env.AFRICASTALKING_SENDER_ID || 'VetConnect'
       };
 
       const response = await this.sms.send(options);
@@ -124,18 +135,22 @@ class SMSService {
       const failedRecipients: { phone: string; error: string }[] = [];
 
       // Process each recipient
-      if (response.SMSMessageData.Recipients && response.SMSMessageData.Recipients.length > 0) {
+      if (response.SMSMessageData?.Recipients?.length > 0) {
         response.SMSMessageData.Recipients.forEach((recipient: any) => {
-          if (recipient.status === 'Success') {
+          if (recipient.statusCode === 101 || recipient.statusCode === 102 || recipient.status === 'Success') {
             successRecipients.push(recipient.number);
+            console.log(`✅ SMS sent to ${recipient.number}`);
           } else {
             failedRecipients.push({
               phone: recipient.number,
               error: recipient.status
             });
+            console.error(`❌ SMS failed to ${recipient.number}: ${recipient.status}`);
           }
         });
       }
+
+      console.log(`📊 Bulk SMS Summary: ${successRecipients.length} success, ${failedRecipients.length} failed`);
 
       return {
         success: successRecipients.length > 0,
@@ -145,7 +160,7 @@ class SMSService {
       };
 
     } catch (error: any) {
-      console.error('Bulk SMS sending error:', error);
+      console.error('❌ Bulk SMS sending error:', error);
       return {
         success: false,
         message: error.message || 'Failed to send bulk SMS',
@@ -158,4 +173,10 @@ class SMSService {
   }
 }
 
-export default new SMSService();
+// Export both the class instance and individual functions
+const smsService = new SMSService();
+
+export const sendSMS = (to: string, message: string) => smsService.sendSMS(to, message);
+export const sendBulkSMS = (recipients: string[], message: string) => smsService.sendBulkSMS(recipients, message);
+
+export default smsService;

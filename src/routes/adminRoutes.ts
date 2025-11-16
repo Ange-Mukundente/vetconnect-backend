@@ -1,27 +1,34 @@
-import { Router } from 'express';
+import express from 'express';
 import {
+  getDashboardStats,
+  broadcastAlert,
+  getAlerts,
   getAllFarmers,
-  sendBroadcastAlert,
-  sendIndividualAlert,
-  getAlertHistory,
-  getAdminStats
+  getAllVeterinarians
 } from '../controllers/adminController';
-import { protect } from '../middleware/auth';
-import { adminOnly } from '../middleware/roleMiddleware';
+import { protect, authorize } from '../middleware/auth';
+import { deleteFarmer } from '../controllers/adminController';
 
-const router = Router();
 
-// Protect all admin routes
+const router = express.Router();
+
+// Protect all routes - admin only
 router.use(protect);
-router.use(adminOnly);
+router.use(authorize('admin'));
 
-// GET routes
+// Dashboard stats
+router.get('/dashboard', getDashboardStats);
+
+// Broadcast alert to farmers
+router.post('/broadcast', broadcastAlert);
+
+// Get alert history
+router.get('/alerts', getAlerts);
+
+// Get all farmers
 router.get('/farmers', getAllFarmers);
-router.get('/alert-history', getAlertHistory);
-router.get('/stats', getAdminStats);
 
-// POST routes
-router.post('/send-broadcast-alert', sendBroadcastAlert);
-router.post('/send-individual-alert', sendIndividualAlert);
-
+// Get all veterinarians
+router.get('/veterinarians', getAllVeterinarians);
+router.delete('/farmers/:id', deleteFarmer);
 export default router;
