@@ -4,7 +4,6 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-//import dotenv from 'dotenv';
 import connectDB from './config/database';
 import routes from './routes';
 import errorHandler from './middleware/errorHandler';
@@ -28,14 +27,17 @@ console.log('🌐 Allowed CORS origins:', allowedOrigins);
 // Middleware
 app.use(helmet()); // Security headers
 
-// CORS - UPDATED with function-based origin check
+// CORS - UPDATED to allow all Vercel preview deployments
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, Postman, or curl)
     if (!origin) return callback(null, true);
     
-    // Check if the origin is in the allowed list
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check if the origin is in the allowed list OR is a Vercel deployment
+    const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
+                      origin.includes('.vercel.app');
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.log('❌ CORS blocked origin:', origin);
