@@ -3,10 +3,16 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
 // Generate JWT Token
-const generateToken = (userId: string) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'your-secret-key', {
-    expiresIn: process.env.JWT_EXPIRE || '7d',
-  });
+const generateToken = (userId: string): string => {
+  const secret = process.env.JWT_SECRET;
+  const expiresIn = process.env.JWT_EXPIRE || "30d";
+  
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined");
+  }
+
+  // @ts-ignore
+  return jwt.sign({ id: userId }, secret, { expiresIn });
 };
 
 // @desc    Register a new user
