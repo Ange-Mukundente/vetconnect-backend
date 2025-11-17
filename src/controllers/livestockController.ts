@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import Livestock from '../models/Livestock';
 
-// @desc    Get all livestock for logged-in farmer
+// @desc    Get ALL livestock
 // @route   GET /api/livestock
-// @access  Private (Farmer only)
-export const getAllLivestock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// @access  Private
+export const getAllLivestock = async (req: Request, res: Response): Promise<void> => {
   try {
-    const livestock = await Livestock.find({ farmerId: req.user?.id }).sort({ createdAt: -1 });
+    // Fetch ALL livestock from the database
+    const livestock = await Livestock.find({}).sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -22,6 +23,7 @@ export const getAllLivestock = async (req: Request, res: Response, next: NextFun
     });
   }
 };
+
 
 // @desc    Get single livestock by ID
 // @route   GET /api/livestock/:id
